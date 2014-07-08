@@ -38,7 +38,7 @@ jackknife_output_on = True
 #3) Data about the Runs:
 run_group_name = 'RCONhX03NEW'
 Number_of_runs = 20
-timesteps = 20001
+timesteps = 10001
 size_of_timestep = 0.001
 Dimensions = 3
 
@@ -62,7 +62,7 @@ Antistrange_Aktiv = True
 Gluons_Aktiv = True
 
 #5) Name for the output-file:
-beliebig = 'Vergleich2'
+beliebig = 'jackknifedev'
 
 #6) Some Parameters:
 ladung = [0.0, 2.0 / 3.0, -2.0 / 3.0, -1.0 / 3.0, 1.0 / 3.0, -1.0 / 3.0, 1.0 / 3.0]
@@ -71,7 +71,7 @@ TT = [20000.0,2253.0,668.0,454849.0,232883.0,134771.0]#[34982.0,4373.0,1296.0,74
 #7) Settings about the Plots:
 
 #Number of timesteps included in the Analysis!
-kurzintervall=int(20001)
+kurzintervall=int(5000)
 #number of X-labels. CAREFUL! kurzintervall/Anzahlxlabels HAS TO BE INTEGER!
 Anzahlxlabels = 10
 #Cutoff in the Beginning
@@ -357,7 +357,7 @@ while b < (temperature_end + temperature_inc):
 		#Cut the errordata off at kurzintervall, divide by sqrt(N). N is now the actually used number of runs
 		fehlerdaten_zum_fitten=std_corr_array[0:kurzintervall]/sqrt((Number_of_runs - No_file_count)*Dimensions)
 		#DO THE LEAST_SQUARE FIT
-		fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten,p0=[1.0,1.0],fehlerdaten_zum_fitten)
+		fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten, p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
 		sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
 		#Save the value for the relaxation time for the full sample
 		Full_sample_fit_value = fitParams[1]*size_of_timestep
@@ -365,10 +365,11 @@ while b < (temperature_end + temperature_inc):
 		#2) do the Analysis for all runs but one, "Jackknifing""
 		
 		Array_aus_jackknife_steigungen = N.zeros(0)
+		
 		for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
-
 			#Number of runs used in each jackknife-Step
 			Jackknife_number_of_runs = (Number_of_runs - No_file_count)*Dimensions - 1
+			print("Jackknife_number_of_runs: " + str(Jackknife_number_of_runs))
 			
 			#Some runs do not exist. Leave them out. They are masked from the loop before.
 			lasse_aus_weil_dieser_run_fehlt = False
@@ -404,14 +405,20 @@ while b < (temperature_end + temperature_inc):
 				fehlerdaten_zum_fitten=std_corr_array[0:kurzintervall]/sqrt(Jackknife_number_of_runs)
 
 				#DO THE LEAST_SQUARE FIT
-				fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten,p0=[1.0,1.0],fehlerdaten_zum_fitten)
+				fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten,p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
 				sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
 
 				#Save in Array
 				N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
 
-		Jackknife_error = sqrt( (Jackknife_number_of_runs-1)/Jackknife_number_of_runs*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
+		print("Array_aus_jackknife_steigungen:")
+		print Array_aus_jackknife_steigungen
 
+		print("Summe:")
+		print(sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2)) 
+		
+		Jackknife_error = sqrt( (Jackknife_number_of_runs-1)/Jackknife_number_of_runs*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
+		print(" Jackknife-error estimation: " + str(Jackknife_error))
 
 
 				
@@ -438,12 +445,11 @@ while b < (temperature_end + temperature_inc):
 			f.close()
 			chdir('../../')
 
-
-		
 		#Calculate the JACKKNIFE ERROR
-		print(Array_aus_jackknife_steigungen)
-		jackknife_error = sqrt((Number_of_runs_times_dimensions-1)*sum(pow((Array_aus_jackknife_steigungen[i]-fitParams[1]),2.0)/Number_of_runs_times_dimensions for i in arange(Number_of_runs_times_dimensions-1)))
-		print(" JACKKNIFE : " + str(jackknife_error))
+		#print(Array_aus_jackknife_steigungen)
+		#jackknife_error = sqrt((Number_of_runs_times_dimensions-1)*sum(pow((Array_aus_jackknife_steigungen[i]-fitParams[1]),2.0)/Number_of_runs_times_dimensions for i in arange(Number_of_runs_times_dimensions-1)))
+		#print("old JACKKNIFE : " + str(jackknife_error))
+
 		
 		#Print out Information
 		print("\n\n\n********* FINAL RESULTS *********\n\n\n")
