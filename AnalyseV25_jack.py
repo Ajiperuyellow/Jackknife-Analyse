@@ -341,6 +341,7 @@ while b < (temperature_end + temperature_inc):
 		###############################################################################	
 		
 		#JACKKNIFE
+		
 		#1) do the Analysis for all runs
 		
 		#Generate a clean array of corrfunctions, where  possible missing runs are masked away
@@ -358,12 +359,11 @@ while b < (temperature_end + temperature_inc):
 		#DO THE LEAST_SQUARE FIT
 		fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten,p0=[1.0,1.0],fehlerdaten_zum_fitten)
 		sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
-			
+		#Save the value for the relaxation time for the full sample
+		Full_sample_fit_value = fitParams[1]*size_of_timestep
 
-
-
+		#2) do the Analysis for all runs but one, "Jackknifing""
 		
-		# Use Original number of runs. Do the analysis, and append the fit-value to the Array_aus_jackknife_steigungen
 		Array_aus_jackknife_steigungen = N.zeros(0)
 		for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
 
@@ -410,7 +410,7 @@ while b < (temperature_end + temperature_inc):
 				#Save in Array
 				N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
 
-		Jackknife_error = (Jackknife_number_of_runs-1)/Jackknife_number_of_runs*sum(Array_aus_jackknife_steigungen-)
+		Jackknife_error = sqrt( (Jackknife_number_of_runs-1)/Jackknife_number_of_runs*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
 
 
 
@@ -420,76 +420,11 @@ while b < (temperature_end + temperature_inc):
 		Number_of_runs_times_dimensions = Number_of_runs * Dimensions
 
 		
-		#-----------------------------------------------		
-		#
-		#Statistical tests of the Mean Current over time
-		#
-		print('\n*** Current - Statistical tests ***\n')
-		#Histogram over runs of the individual Mean Current over time
-		print('*** Plot <Nx>-Histogramm over all runs ***')
-		chdir('ANALYSIS_'+filename_basis+'_'+beliebig)
-		chdir('Correlators_'+filename_basis+'_'+beliebig)
-		plt.hist(mittelwert,100)
-		plt.savefig(beliebig +'_HISTO-MeanCurrent' + '_' + filename_basis + '_' + str(Number_of_runs_times_dimensions) + '_runs_' + str(Zeit_max) + '_tsteps_' + beliebig + '.png', dpi=300, figsize=(8, 6))
-		plt.clf()
-		chdir('../../')
-		# Do some tests		
-		StromA2, Stromsig, Stromcrit = sy.stats.anderson(mittelwert,dist='norm')
-    		StromD, StrompD = sy.stats.kstest(mittelwert, "norm")
-    		StromW, StrompW = sy.stats.shapiro(mittelwert)
-		# Print the results
-		print('*** STATISTICAL TEST on Gaussian property ***')
-		print('1) ANDERSON-Test:')
-		print('A2 = ' + str(StromA2))
-		print(Stromsig)
-		print(Stromcrit)
-		print('2) KS-Test:')
-		print('p-Value = ' + str(StrompD))
-		print('W-Value = ' + str(StromD))
-		print('3) Shapiro-Test:')
-		print('p-Value = ' + str(StrompW))
-		print('W-Value = ' + str(StromW))	
-		#-----------------------------------------------
-		#
-		#Statistical tests of the Variances
-		#
-		print('\n*** Variances ***\n')
-		#Plot Histograms of the Variances over the runs
-		chdir('ANALYSIS_'+filename_basis+'_'+beliebig)
-		chdir('Correlators_'+filename_basis+'_'+beliebig)
-		plt.hist(variance_array,100)
-		plt.savefig(beliebig +'HISTO-Variance' + '_' + filename_basis + '_' + str(Number_of_runs_times_dimensions) + '_runs_' + str(Zeit_max) + '_tsteps_' + beliebig + '.png', dpi=300, figsize=(8, 6))
-		plt.clf()
-		chdir('../../')
-		#Do some tests	
-		A2, sig, crit = sy.stats.anderson(variance_array,dist='norm')
-    		D, pD = sy.stats.kstest(variance_array, "norm")
-    		W, pW = sy.stats.shapiro(variance_array)
-		#Plot the results
-		print('*** STATISTICAL TEST on Gaussian property ***')
-		print('1) ANDERSON-Test:')
-		print('A2 = ' + str(A2))
-		print(sig)
-		print(crit)
-		print('2) KS-Test:')
-		print('p-Value = ' + str(pD))
-		print('W-Value = ' + str(D))
-		print('3) Shapiro-Test:')
-		print('p-Value = ' + str(pW))
-		print('W-Value = ' + str(W) + '/n')		
-		#-----------------------------------------------		
-		
-		#REDUNDANT
-		#Average and calculate the deviation
-		#variance_average = N.mean(variance_array)
-		#variance_std = N.std(variance_array)
-		
-		
 		#Mask the Arrays to shield of Zero-Values because of missing runs
 		corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
 
 
-		#JACKKNIFE OUTPUT
+		#JACKKNIFE OUTPUT for Marc wagner's Code GEP'
 		if jackknife_output_on:
 			for s in arange(Number_of_runs_times_dimensions):
 				for t in arange(Zeit_max):
@@ -503,25 +438,6 @@ while b < (temperature_end + temperature_inc):
 			f.close()
 			chdir('../../')
 
-
-		# Do the Full Ensemble Analyse
-		
-		#Average the Correlator over all runs
-		mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
-		std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
-		
-		#Fit the Correlator to find the Exponential Decay
-		
-		#def fitFunc(zeit, a, b, c):
-			#return a*N.exp(-1.0*zeit/b)  + c
-    		def fitFunc(zeit, a, b):
-			return a*N.exp(-1.0*zeit/b)
-		daten_zum_fitten=mean_corr_array[0:kurzintervall]
-		fehlerdaten_zum_fitten=std_corr_array[0:kurzintervall]/sqrt(Number_of_runs_times_dimensions)
-		fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten)
-		sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
-		#print fitParams
-		#print fitCovariances
 
 		
 		#Calculate the JACKKNIFE ERROR
