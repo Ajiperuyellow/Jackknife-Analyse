@@ -20,15 +20,9 @@ import codecs
 #GIT Tracked
 #CHECKIT
 
-
-
 # This program runs through standard BAMPS-Hydro outputs and correlates time-dependent data
 print("Go")
 #Settings:
-
-
-
-
 
 #1) Select the Column, in which you want to take the data out:
 Timecolumn = 0
