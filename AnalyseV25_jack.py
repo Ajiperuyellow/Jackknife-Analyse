@@ -17,12 +17,15 @@ import matplotlib.pyplot as plt
 import matplotlib.figure
 import codecs
 
+#GIT Tracked
+
+
 
 # This program runs through standard BAMPS-Hydro outputs and correlates time-dependent data
 print("Go")
 #Settings:
 
-print(abs(-5))
+
 
 
 
@@ -343,7 +346,7 @@ while b < (temperature_end + temperature_inc):
 			
 		
 		#JACKKNIFE
-
+		#
 		# Use Original number of runs. Do the analysis, and append the fit-value to the Array_aus_jackknife_steigungen
 		for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
 			
