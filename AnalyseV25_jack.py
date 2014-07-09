@@ -343,7 +343,6 @@ while b < (temperature_end + temperature_inc):
 		#JACKKNIFE
 		
 		#1) do the Analysis for all runs
-		
 		#Generate a clean array of corrfunctions, where  possible missing runs are masked away
 		corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
 		#Average the Correlator over all runs
@@ -358,6 +357,7 @@ while b < (temperature_end + temperature_inc):
 		fehlerdaten_zum_fitten=std_corr_array[0:kurzintervall]/sqrt((Number_of_runs - No_file_count)*Dimensions)
 		#DO THE LEAST_SQUARE FIT
 		fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten, p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
+		#
 		sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
 		#Save the value for the relaxation time for the full sample
 		Full_sample_fit_value = fitParams[1]*size_of_timestep
@@ -407,7 +407,8 @@ while b < (temperature_end + temperature_inc):
 				fehlerdaten_zum_fitten=std_corr_array[0:kurzintervall]/sqrt(Jackknife_number_of_runs)
 
 				#DO THE LEAST_SQUARE FIT
-				fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten,p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
+				fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten, p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
+				
 				sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
 
 				print("Jackknife-Steigung aktuell: "+ str(fitParams[1]*size_of_timestep))
