@@ -37,7 +37,7 @@ jackknife_output_on = True
 
 #3) Data about the Runs:
 run_group_name = 'RCONhX03NEW'
-Number_of_runs = 20
+Number_of_runs = 10
 timesteps = 10001
 size_of_timestep = 0.001
 Dimensions = 3
@@ -71,7 +71,7 @@ TT = [20000.0,2253.0,668.0,454849.0,232883.0,134771.0]#[34982.0,4373.0,1296.0,74
 #7) Settings about the Plots:
 
 #Number of timesteps included in the Analysis!
-kurzintervall=int(5000)
+kurzintervall=int(1000)
 #number of X-labels. CAREFUL! kurzintervall/Anzahlxlabels HAS TO BE INTEGER!
 Anzahlxlabels = 10
 #Cutoff in the Beginning
@@ -362,14 +362,16 @@ while b < (temperature_end + temperature_inc):
 		#Save the value for the relaxation time for the full sample
 		Full_sample_fit_value = fitParams[1]*size_of_timestep
 
+		print("Full_sample_fit_value: "+ str(Full_sample_fit_value))
+
 		#2) do the Analysis for all runs but one, "Jackknifing""
 		
 		Array_aus_jackknife_steigungen = N.zeros(0)
-		
+		#Number of runs used in each jackknife-Step
+		Jackknife_number_of_runs = (Number_of_runs - No_file_count)*Dimensions - 1
+		print("Jackknife_number_of_runs: " + str(Jackknife_number_of_runs))
+
 		for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
-			#Number of runs used in each jackknife-Step
-			Jackknife_number_of_runs = (Number_of_runs - No_file_count)*Dimensions - 1
-			print("Jackknife_number_of_runs: " + str(Jackknife_number_of_runs))
 			
 			#Some runs do not exist. Leave them out. They are masked from the loop before.
 			lasse_aus_weil_dieser_run_fehlt = False
@@ -408,18 +410,21 @@ while b < (temperature_end + temperature_inc):
 				fitParams, fitCovariances = curve_fit(fitFunc, kurzezeit, daten_zum_fitten,p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
 				sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
 
+				print("Jackknife-Steigung aktuell: "+ str(fitParams[1]*size_of_timestep))
+				
 				#Save in Array
-				N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
+				Array_aus_jackknife_steigungen=N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
 
 		print("Array_aus_jackknife_steigungen:")
 		print Array_aus_jackknife_steigungen
 
 		print("Summe:")
 		print(sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2)) 
-		
-		Jackknife_error = sqrt( (Jackknife_number_of_runs-1)/Jackknife_number_of_runs*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
-		print(" Jackknife-error estimation: " + str(Jackknife_error))
 
+		print((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)
+			
+		Jackknife_error = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
+		print(" Jackknife-error estimation: " + str(Jackknife_error))
 
 				
 		#Update the number of runs
@@ -476,30 +481,8 @@ while b < (temperature_end + temperature_inc):
 		variancestring = '\n\n'
 		variancestring += 'Variance + error + relaxation time + error:'
 		variancestring += str(mean_corr_array[0]) + '\t' + str(std_corr_array[0]/sqrt(Number_of_runs_times_dimensions)) + '\t' + str(fitParams[1]*size_of_timestep) + '\t' + str(sigma[1]*size_of_timestep)+ '\n\n'
-		#variancestring += str(b) + '\t' + str(variance_average*TT[int(b*10.0-1.0)]) + '\t' + str(variance_std*TT[int(b*10.0-1.0)]/sqrt(Number_of_runs_times_dimensions)) + '\n' + 'Mean Current =' + '\t' + str(N.mean(mittelwert)) + '\t' + '+-' + '\t' + str(N.std(mittelwert)/sqrt(Number_of_runs)) + '\n'
-		variancestring += '*** STATISTICAL TEST on Gaussian property of the Variance *** \n'+ '\n'
-		variancestring +='1) ANDERSON-Test: \n'
-		variancestring +='A2 = ' + str(A2) + '\n'
-		variancestring +=str(sig) + '\n'
-		variancestring +=str(crit) + '\n'+ '\n'
-		variancestring +='2) KS-Test: \n'
-		variancestring +='p-Value = ' + str(pD) + '\n'
-		variancestring +='W-Value = ' + str(D) + '\n'+ '\n'
-		variancestring +='3) Shapiro-Test:\n'
-		variancestring +='p-Value = ' + str(pW) + '\n'
-		variancestring +='W-Value = ' + str(W) + '\n'	+ '\n'
-		variancestring += '*** STATISTICAL TEST on Gaussian property of the Mean Current *** \n'+ '\n'
-		variancestring +='1) ANDERSON-Test: \n'
-		variancestring +='A2 = ' + str(StromA2) + '\n'
-		variancestring +=str(Stromsig) + '\n'
-		variancestring +=str(Stromcrit) + '\n'+ '\n'
-		variancestring +='2) KS-Test: \n'
-		variancestring +='p-Value = ' + str(StrompD) + '\n'
-		variancestring +='W-Value = ' + str(StromD) + '\n'+ '\n'
-		variancestring +='3) Shapiro-Test:\n'
-		variancestring +='p-Value = ' + str(StrompW) + '\n'
-		variancestring +='W-Value = ' + str(StromW) + '\n'	
-		variancestring +=  '\n\n' +  '*** RELAXATION-TIME: ***\n' +  str(fitParams[1]*size_of_timestep) + ' +- ' + str(sigma[1]*size_of_timestep)		
+		#variancestring += str(b) + '\t' + str(variance_average*TT[int(b*10.0-1.0)]) + '\t' + str(variance_std*TT[int(b*10.0-1.0)]/sqrt(Number_of_runs_times_dimensions)) + '\n' + 'Mean Current =' + '\t' + str(N.mean(mittelwert)) + '\t' + '+-' + '\t' + str(N.std(mittelwert)/sqrt(Number_of_runs)) + '\n'		
+		variancestring +=  '\n\n' +  '*** RELAXATION-TIME: ***\n' +  str(fitParams[1]*size_of_timestep) + ' +- ' + str(sigma[1]*size_of_timestep)
 		
 		#Generate the output-String for the Full Correlator
 		
