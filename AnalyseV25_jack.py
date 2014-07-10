@@ -33,12 +33,12 @@ DatacolumnD3 = 17
 #2) Select if you want to print out histograms and the data itself for each run:
 histograms_on = False
 currentplots_on = False
-jackknife_output_on = True
+jackknife_output_on = False
 
 #3) Data about the Runs:
 run_group_name = 'RCONhX03NEW'
-Number_of_runs = 10
-timesteps = 10001
+Number_of_runs = 20
+timesteps = 30001
 size_of_timestep = 0.001
 Dimensions = 3
 
@@ -62,7 +62,7 @@ Antistrange_Aktiv = True
 Gluons_Aktiv = True
 
 #5) Name for the output-file:
-beliebig = 'full_10t'
+beliebig = 'Go20full'
 
 #6) Some Parameters:
 ladung = [0.0, 2.0 / 3.0, -2.0 / 3.0, -1.0 / 3.0, 1.0 / 3.0, -1.0 / 3.0, 1.0 / 3.0]
@@ -77,19 +77,18 @@ Anzahlxlabels = 10
 Anfangscutoff = 0
 
 #8) Fitting ranges
-fit_min = int(1000)
-fit_max = int(1020)
-
-
-
+fit_min = int(900)
+fit_max = int(2000)
 
 
 #Printe:
+print('Welcome to the Green-Kubo Analysis-tool ***NAC*** (Numerical Analysis of Correlators)')
+print('Author: Moritz Greif')
+print('email: greif@th.physik.uni-frankfurt.de')
+print('Available on Github: Ajiperuyellow')
+print('\n')
+print('*** optimized for electric conductivity calculation ***')
 
-print('ONLY EXPONENTIAL FIT')
-print('*** Time-correlation/Current calculator V16 turbo ***')
-print('Includes Testparticles!')
-print('')
 
 #Plotlabels
 Positionxlabels = arange(0,kurzintervall,kurzintervall/Anzahlxlabels)
@@ -137,8 +136,10 @@ while b < (temperature_end + temperature_inc):
 		#Make/Change Folder
 		mkdir('ANALYSIS_'+filename_basis+'_'+beliebig)
 		chdir('ANALYSIS_'+filename_basis+'_'+beliebig)
-		mkdir('Time_Histogram_'+filename_basis+'_'+beliebig)
-		mkdir('Currents_'+filename_basis+'_'+beliebig)
+		if histograms_on:
+			mkdir('Time_Histogram_'+filename_basis+'_'+beliebig)
+		if currentplots_on:
+			mkdir('Currents_'+filename_basis+'_'+beliebig)
 		mkdir('Correlators_'+filename_basis+'_'+beliebig)
 		chdir('../')	
 		
@@ -413,7 +414,7 @@ while b < (temperature_end + temperature_inc):
 
 					#Mask this run. It is jackknifed away!
 					corrfunction_array_MASK[:,jackknife_skip_number]=1
-					print corrfunction_array_MASK
+
 					#Generate a clean array of corrfunctions, where the jackknifing was done, and possible missing runs are also masked away
 					corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
 
@@ -560,9 +561,9 @@ while b < (temperature_end + temperature_inc):
 		for i in N.arange(0,N.size(Slopedata_fitrange_array)):
 			variancestring += str(Slopedata_fitrange_array[i]) + '\t' + str(Jackknifeerrordata_fitrange_array[i])+ '\n'
 		variancestring += '\n\n\n\n'
-		variancestring += str(mean_corr_array[0]) + '\t' + str(std_corr_array[0]/sqrt(Number_of_runs_times_dimensions)) + '\t' + str(fitParams[1]*size_of_timestep) + '\t' + str(sigma[1]*size_of_timestep)+ '\n\n'
+		#variancestring += str(mean_corr_array[0]) + '\t' + str(std_corr_array[0]/sqrt(Number_of_runs_times_dimensions)) + '\t' + str(fitParams[1]*size_of_timestep) + '\t' + str(sigma[1]*size_of_timestep)+ '\n\n'
 		#variancestring += str(b) + '\t' + str(variance_average*TT[int(b*10.0-1.0)]) + '\t' + str(variance_std*TT[int(b*10.0-1.0)]/sqrt(Number_of_runs_times_dimensions)) + '\n' + 'Mean Current =' + '\t' + str(N.mean(mittelwert)) + '\t' + '+-' + '\t' + str(N.std(mittelwert)/sqrt(Number_of_runs)) + '\n'		
-		variancestring +=  '\n\n' +  '*** RELAXATION-TIME: ***\n' +  str(fitParams[1]*size_of_timestep) + ' +- ' + str(sigma[1]*size_of_timestep)
+		#variancestring +=  '\n\n' +  '*** RELAXATION-TIME: ***\n' +  str(fitParams[1]*size_of_timestep) + ' +- ' + str(sigma[1]*size_of_timestep)
 		
 		#Generate the output-String for the Full Correlator
 		
