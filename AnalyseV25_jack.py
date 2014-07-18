@@ -18,10 +18,9 @@ import matplotlib.figure
 import codecs
 
 #GIT Tracked
-#CHECKIT
+#
 
 # This program runs through standard BAMPS-Hydro outputs and correlates time-dependent data
-print("Go")
 #Settings:
 
 #1) Select the Column, in which you want to take the data out:
@@ -37,14 +36,14 @@ jackknife_output_on = False
 
 #3) Data about the Runs:
 run_group_name = 'RCONhX03NEW'
-Number_of_runs = 20
+Number_of_runs = 120
 timesteps = 30001
 size_of_timestep = 0.001
 Dimensions = 3
 
 #4) Physical Data:
 temperature_begin = 0.4
-temperature_end = 0.4
+temperature_end = 0.6
 temperature_inc = 0.1
 
 efield = 0.0
@@ -62,7 +61,7 @@ Antistrange_Aktiv = True
 Gluons_Aktiv = True
 
 #5) Name for the output-file:
-beliebig = 'Go20full'
+beliebig = 'Jackknife_Different_Fittimes'
 
 #6) Some Parameters:
 ladung = [0.0, 2.0 / 3.0, -2.0 / 3.0, -1.0 / 3.0, 1.0 / 3.0, -1.0 / 3.0, 1.0 / 3.0]
@@ -77,9 +76,18 @@ Anzahlxlabels = 10
 Anfangscutoff = 0
 
 #8) Fitting ranges
-fit_min = int(900)
-fit_max = int(2000)
+# choose here if the fit should be continous (True), or single values (False)
+Use_continous_fitrange_instead_of_single_values = False
+fit_min = int(800)
+fit_max = int(801)
+fitrange_array = N.array([50, 100, 300 , 900, 5000])
 
+
+
+
+#9) Initial Fitting guesses in timesteps
+initial_guess_time = 1200
+initial_guess_variance = 4000
 
 #Printe:
 print('Welcome to the Green-Kubo Analysis-tool ***NAC*** (Numerical Analysis of Correlators)')
@@ -357,107 +365,207 @@ while b < (temperature_end + temperature_inc):
 		Jackknifeerrordata_fitrange_array=N.zeros(0)
 		#Variance does not depend on fitting range
 
-		
-		fitrange = fit_min
-		while fitrange < fit_max:
-			print fitrange
-			fitrange_time_x_values = N.arange(0,fitrange)
-			#1) do the Analysis for all runs
-			#Generate a clean array of corrfunctions, where  possible missing runs are masked away
-			corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
-			#Average the Correlator over all runs
-			mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
-			std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
-			#Variance
-			Final_Full_sample_variance = mean_corr_array[0]
-			#Fit the Correlator to find the Exponential Decay
-			def fitFunc(zeit, a, b):
-				return a*N.exp(-1.0*zeit/b)
-			#Cut the data off at fitrange
-			daten_zum_fitten=mean_corr_array[0:fitrange]
-			#Cut the errordata off at fitrange, divide by sqrt(N). N is now the actually used number of runs
-			fehlerdaten_zum_fitten=std_corr_array[0:fitrange]/sqrt((Number_of_runs - No_file_count)*Dimensions)
-			#DO THE LEAST_SQUARE FIT
-			fitParams, fitCovariances = curve_fit(fitFunc, fitrange_time_x_values, daten_zum_fitten, p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
-			#
-			sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
-			#Save the value for the relaxation time for the full sample
-			Full_sample_fit_value = fitParams[1]*size_of_timestep
-			#Save the value in the array
-			Slopedata_fitrange_array = N.append(Slopedata_fitrange_array,Full_sample_fit_value)
+		if Use_continous_fitrange_instead_of_single_values:
+			fitrange = fit_min
+			while fitrange < fit_max:
+				print fitrange
+				fitrange_time_x_values = N.arange(0,fitrange)
+				#1) do the Analysis for all runs
+				#Generate a clean array of corrfunctions, where  possible missing runs are masked away
+				corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
+				#Average the Correlator over all runs
+				mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
+				std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
+				#Variance
+				Final_Full_sample_variance = mean_corr_array[0]
+				#Fit the Correlator to find the Exponential Decay
+				def fitFunc(zeit, a, b):
+					return a*N.exp(-1.0*zeit/b)
+				#Cut the data off at fitrange
+				daten_zum_fitten=mean_corr_array[0:fitrange]
+				#Cut the errordata off at fitrange, divide by sqrt(N). N is now the actually used number of runs
+				fehlerdaten_zum_fitten=std_corr_array[0:fitrange]/sqrt((Number_of_runs - No_file_count)*Dimensions)
+				#DO THE LEAST_SQUARE FIT
+				fitParams, fitCovariances = curve_fit(fitFunc, fitrange_time_x_values, daten_zum_fitten, p0=[initial_guess_variance,initial_guess_time],sigma=fehlerdaten_zum_fitten)
+				#
+				sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
+				#Save the value for the relaxation time for the full sample
+				Full_sample_fit_value = fitParams[1]*size_of_timestep
+				#Save the value in the array
+				Slopedata_fitrange_array = N.append(Slopedata_fitrange_array,Full_sample_fit_value)
 
-			#chi = (daten_zum_fitten-fitFunc(fitrange_time_x_values,fitParams[0],fitParams[1]))/pow(std_corr_array[0:fitrange],2.0)
-			#chi2 = (chi ** 2).sum()
-			#dof = len(daten_zum_fitten) - len(fitParams)
-			#print("chi2/dof = " + str(chi2/dof))			
-			
-			#2) do the Analysis for all runs but one, "Jackknifing""
+				#chi = (daten_zum_fitten-fitFunc(fitrange_time_x_values,fitParams[0],fitParams[1]))/pow(std_corr_array[0:fitrange],2.0)
+				#chi2 = (chi ** 2).sum()
+				#dof = len(daten_zum_fitten) - len(fitParams)
+				#print("chi2/dof = " + str(chi2/dof))
 
-			#Initialise the Arrays for the reduced samples
-			Array_aus_jackknife_steigungen = N.zeros(0)
-			Reduced_sample_variance_array = N.zeros(0)
-			
-			#Number of runs used in each jackknife-Step
-			Jackknife_number_of_runs = (Number_of_runs - No_file_count)*Dimensions - 1
-			
-			for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
+				#2) do the Analysis for all runs but one, "Jackknifing""
 
-				#Some runs do not exist. Leave them out. They are masked from the loop before.
-				lasse_aus_weil_dieser_run_fehlt = False
+				#Initialise the Arrays for the reduced samples
+				Array_aus_jackknife_steigungen = N.zeros(0)
+				Reduced_sample_variance_array = N.zeros(0)
 
-				#So check if there is a mask on this special runnumber
-				if corrfunction_array_MASK[:,jackknife_skip_number-1].all()==1:
-					lasse_aus_weil_dieser_run_fehlt = True
+				#Number of runs used in each jackknife-Step
+				Jackknife_number_of_runs = (Number_of_runs - No_file_count)*Dimensions - 1
 
-				# if everything is allright, so the run exists, start with jackknifing
-				if lasse_aus_weil_dieser_run_fehlt == False:
+				for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
 
-					#Mask this run. It is jackknifed away!
-					corrfunction_array_MASK[:,jackknife_skip_number]=1
+					#Some runs do not exist. Leave them out. They are masked from the loop before.
+					lasse_aus_weil_dieser_run_fehlt = False
 
-					#Generate a clean array of corrfunctions, where the jackknifing was done, and possible missing runs are also masked away
-					corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
+					#So check if there is a mask on this special runnumber
+					if corrfunction_array_MASK[:,jackknife_skip_number].all()==1:
+						lasse_aus_weil_dieser_run_fehlt = True
 
-					# REDO the masking
-					corrfunction_array_MASK[:,jackknife_skip_number]=0
+					# if everything is allright, so the run exists, start with jackknifing
+					if lasse_aus_weil_dieser_run_fehlt == False:
 
-					#Average the Correlator over all runs
-					mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
-					std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
+						#Mask this run. It is jackknifed away!
+						corrfunction_array_MASK[:,jackknife_skip_number]=1
 
-					#Variance
-					Reduced_sample_variance_array = N.append(Reduced_sample_variance_array, mean_corr_array[0])
+						#Generate a clean array of corrfunctions, where the jackknifing was done, and possible missing runs are also masked away
+						corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
 
-					#Fit the Correlator to find the Exponential Decay
-					def fitFunc(zeit, a, b):
-						return a*N.exp(-1.0*zeit/b)
+						# REDO the masking
+						corrfunction_array_MASK[:,jackknife_skip_number]=0
 
-					#Cut the data off at fitrange
-					daten_zum_fitten=mean_corr_array[0:fitrange]
+						#Average the Correlator over all runs
+						mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
+						std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
 
-					#Cut the errordata off at fitrange, divide by sqrt(N). N is now the actually used number of runs
-					fehlerdaten_zum_fitten=std_corr_array[0:fitrange]/sqrt(Jackknife_number_of_runs)
+						#Variance
+						Reduced_sample_variance_array = N.append(Reduced_sample_variance_array, mean_corr_array[0])
 
-					#DO THE LEAST_SQUARE FIT
-					fitParams, fitCovariances = curve_fit(fitFunc, fitrange_time_x_values, daten_zum_fitten, p0=[1.0,1.0],sigma=fehlerdaten_zum_fitten)
+						#Fit the Correlator to find the Exponential Decay
+						def fitFunc(zeit, a, b):
+							return a*N.exp(-1.0*zeit/b)
 
-					sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
+						#Cut the data off at fitrange
+						daten_zum_fitten=mean_corr_array[0:fitrange]
 
-					#Save in Array
-					Array_aus_jackknife_steigungen=N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
+						#Cut the errordata off at fitrange, divide by sqrt(N). N is now the actually used number of runs
+						fehlerdaten_zum_fitten=std_corr_array[0:fitrange]/sqrt(Jackknife_number_of_runs)
+
+						#DO THE LEAST_SQUARE FIT
+						fitParams, fitCovariances = curve_fit(fitFunc, fitrange_time_x_values, daten_zum_fitten, p0=[initial_guess_variance,initial_guess_time],sigma=fehlerdaten_zum_fitten)
+
+						sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
+
+						#Save in Array
+						Array_aus_jackknife_steigungen=N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
 
 
-			#Calculate the jackknife-error for this very fitting range, for the relaxation-time error
-			Jackknife_error = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
-			#Save in the array
-			Jackknifeerrordata_fitrange_array = N.append(Jackknifeerrordata_fitrange_array,Jackknife_error)
-			#Calculate the jackknife-error for this very fitting range, for the relaxation-time error
-			Final_Jackknife_error_variance = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Reduced_sample_variance_array-Final_Full_sample_variance)**2) )
-			#should be the same for all fit ranges, thus no array over fitranges needed
-			#
-			#Increase the fitrange
-			fitrange += 1
+				#Calculate the jackknife-error for this very fitting range, for the relaxation-time error
+				Jackknife_error = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
+				#Save in the array
+				Jackknifeerrordata_fitrange_array = N.append(Jackknifeerrordata_fitrange_array,Jackknife_error)
+				#Calculate the jackknife-error for this very fitting range, for the relaxation-time error
+				Final_Jackknife_error_variance = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Reduced_sample_variance_array-Final_Full_sample_variance)**2) )
+				#should be the same for all fit ranges, thus no array over fitranges needed
+				#
+				#Increase the fitrange
+				fitrange += 1
+		else:
+			#Here is the fitrange from a specified array. You can enter how many fitranges you want.
+			for fitrange in fitrange_array:
+				print("Use fitrange " + str(fitrange) + " from the array: ")
+				print fitrange_array
 
+				fitrange_time_x_values = N.arange(0,fitrange)
+				#1) do the Analysis for all runs
+				#Generate a clean array of corrfunctions, where  possible missing runs are masked away
+				corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
+				#Average the Correlator over all runs
+				mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
+				std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
+				#Variance
+				Final_Full_sample_variance = mean_corr_array[0]
+				#Fit the Correlator to find the Exponential Decay
+				def fitFunc(zeit, a, b):
+					return a*N.exp(-1.0*zeit/b)
+				#Cut the data off at fitrange
+				daten_zum_fitten=mean_corr_array[0:fitrange]
+				#Cut the errordata off at fitrange, divide by sqrt(N). N is now the actually used number of runs
+				fehlerdaten_zum_fitten=std_corr_array[0:fitrange]/sqrt((Number_of_runs - No_file_count)*Dimensions)
+				#DO THE LEAST_SQUARE FIT
+				fitParams, fitCovariances = curve_fit(fitFunc, fitrange_time_x_values, daten_zum_fitten, p0=[initial_guess_variance,initial_guess_time],sigma=fehlerdaten_zum_fitten)
+				#
+				sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
+				#Save the value for the relaxation time for the full sample
+				Full_sample_fit_value = fitParams[1]*size_of_timestep
+				#Save the value in the array
+				Slopedata_fitrange_array = N.append(Slopedata_fitrange_array,Full_sample_fit_value)
+
+				#chi = (daten_zum_fitten-fitFunc(fitrange_time_x_values,fitParams[0],fitParams[1]))/pow(std_corr_array[0:fitrange],2.0)
+				#chi2 = (chi ** 2).sum()
+				#dof = len(daten_zum_fitten) - len(fitParams)
+				#print("chi2/dof = " + str(chi2/dof))
+
+				#2) do the Analysis for all runs but one, "Jackknifing""
+
+				#Initialise the Arrays for the reduced samples
+				Array_aus_jackknife_steigungen = N.zeros(0)
+				Reduced_sample_variance_array = N.zeros(0)
+
+				#Number of runs used in each jackknife-Step
+				Jackknife_number_of_runs = (Number_of_runs - No_file_count)*Dimensions - 1
+
+				for jackknife_skip_number in arange(Number_of_runs_times_dimensions):
+
+					#Some runs do not exist. Leave them out. They are masked from the loop before.
+					lasse_aus_weil_dieser_run_fehlt = False
+
+					#So check if there is a mask on this special runnumber
+					if corrfunction_array_MASK[:,jackknife_skip_number].all()==1:
+						lasse_aus_weil_dieser_run_fehlt = True
+
+					# if everything is allright, so the run exists, start with jackknifing
+					if lasse_aus_weil_dieser_run_fehlt == False:
+
+						#Mask this run. It is jackknifed away!
+						corrfunction_array_MASK[:,jackknife_skip_number]=1
+
+						#Generate a clean array of corrfunctions, where the jackknifing was done, and possible missing runs are also masked away
+						corrfunction_array_masked_clean = ma.masked_array(corrfunction_array, mask=corrfunction_array_MASK)*TT[int(b*10.0-1.0)]
+
+						# REDO the masking
+						corrfunction_array_MASK[:,jackknife_skip_number]=0
+
+						#Average the Correlator over all runs
+						mean_corr_array = N.mean(corrfunction_array_masked_clean,axis=1)
+						std_corr_array = N.std(corrfunction_array_masked_clean,axis=1)
+
+						#Variance
+						Reduced_sample_variance_array = N.append(Reduced_sample_variance_array, mean_corr_array[0])
+
+						#Fit the Correlator to find the Exponential Decay
+						def fitFunc(zeit, a, b):
+							return a*N.exp(-1.0*zeit/b)
+
+						#Cut the data off at fitrange
+						daten_zum_fitten=mean_corr_array[0:fitrange]
+
+						#Cut the errordata off at fitrange, divide by sqrt(N). N is now the actually used number of runs
+						fehlerdaten_zum_fitten=std_corr_array[0:fitrange]/sqrt(Jackknife_number_of_runs)
+
+						#DO THE LEAST_SQUARE FIT
+						fitParams, fitCovariances = curve_fit(fitFunc, fitrange_time_x_values, daten_zum_fitten, p0=[initial_guess_variance,initial_guess_time],sigma=fehlerdaten_zum_fitten)
+
+						sigma = [sqrt(fitCovariances[0,0]), sqrt(fitCovariances[1,1])]
+
+						#Save in Array
+						Array_aus_jackknife_steigungen=N.append(Array_aus_jackknife_steigungen,fitParams[1]*size_of_timestep)
+
+
+				#Calculate the jackknife-error for this very fitting range, for the relaxation-time error
+				Jackknife_error = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Array_aus_jackknife_steigungen-Full_sample_fit_value)**2) )
+				#Save in the array
+				Jackknifeerrordata_fitrange_array = N.append(Jackknifeerrordata_fitrange_array,Jackknife_error)
+				#Calculate the jackknife-error for this very fitting range, for the relaxation-time error
+				Final_Jackknife_error_variance = sqrt( ((Jackknife_number_of_runs-1.0)/Jackknife_number_of_runs)*sum((Reduced_sample_variance_array-Final_Full_sample_variance)**2) )
+				#should be the same for all fit ranges, thus no array over fitranges needed
+			# fitrangeloop finished	
+		#else finished	
 
 
 		#chi = (yn - const(x, *popt)) / sigma
@@ -582,34 +690,51 @@ while b < (temperature_end + temperature_inc):
 		f = codecs.open(beliebig +'Corr_' + '_' + filename_basis + '_' + str(Number_of_runs_times_dimensions) + '_runs_' + str(Zeit_max) + '_tsteps_' , 'w')
 		f.write(superstring)
 		f.close()
-
+		
 		#-----------------------------
 		#Plot and save the Fit-RESULTS
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-		ax.xaxis.grid
-		ax.yaxis
-		figure.autolayout = True
-
-		ax.set_xlabel(r'Fit-time $[fm]$')
-		#ax.tick_params(axis='x', pad=-0.7)
-
-		plt.grid(b=True, which='major')
-		plt.plot(Fitresults_x_values, Slopedata_fitrange_array)#,zeit, fitFunc(t, fitParams[0] + sigma[0], fitParams[1] - sigma[1], fitParams[2] + sigma[2]),zeit, fitFunc(t, fitParams[0] - sigma[0], fitParams[1] + sigma[1], fitParams[2] - sigma[2]))
-		plt.errorbar(Fitresults_x_values, Slopedata_fitrange_array, linestyle='-', color='r', label=('Corr'), yerr=Jackknifeerrordata_fitrange_array, ecolor='g')
-
-		plt.ylabel(r'$\sigma/T$')
-		plt.title(r'Time-Correlator of $N^1$')
-		plt.xlim(fit_min-1,fit_max+1)
-		#ax.set_xticks(Positionxlabels)
-		#ax.set_xticklabels(Arrayxlabels,rotation=45)
-
-		plt.ylabel(r'Slope $[fm]$')
-		ax.bottom = 0.25
-
-		#plt.savefig('Part_'+str(typcount)+'_'+filename_basis+'_'+str(Number_of_runs)+'_runs_'+str(Zeit_max)+'_tsteps_'+beliebig+'.eps')
-		plt.savefig(beliebig +'Slopes' + '_' + filename_basis + '_' + str(Number_of_runs_times_dimensions) + '_runs_' + str(Zeit_max) + '_tsteps_' +  '.png', dpi=300, figsize=(8, 6))
-		plt.clf()
+		if Use_continous_fitrange_instead_of_single_values:
+			fig = plt.figure()
+			ax = fig.add_subplot(111)
+			ax.xaxis.grid
+			ax.yaxis
+			figure.autolayout = True
+			ax.set_xlabel(r'Fit-time $[fm]$')
+			#ax.tick_params(axis='x', pad=-0.7)
+			plt.grid(b=True, which='major')
+			plt.plot(Fitresults_x_values, Slopedata_fitrange_array)#,zeit, fitFunc(t, fitParams[0] + sigma[0], fitParams[1] - sigma[1], fitParams[2] + sigma[2]),zeit, fitFunc(t, fitParams[0] - sigma[0], fitParams[1] + sigma[1], fitParams[2] - sigma[2]))
+			plt.errorbar(Fitresults_x_values, Slopedata_fitrange_array, linestyle='-', color='r', label=('Corr'), yerr=Jackknifeerrordata_fitrange_array, ecolor='g')
+			plt.ylabel(r'$\tau$')
+			plt.title(r'Results for the fitting of $\tau$')
+			plt.xlim(fit_min-1,fit_max+1)
+			#ax.set_xticks(Positionxlabels)
+			#ax.set_xticklabels(Arrayxlabels,rotation=45)
+			plt.ylabel(r'Slope $[fm]$')
+			ax.bottom = 0.25
+			#plt.savefig('Part_'+str(typcount)+'_'+filename_basis+'_'+str(Number_of_runs)+'_runs_'+str(Zeit_max)+'_tsteps_'+beliebig+'.eps')
+			plt.savefig(beliebig +'Slopes' + '_' + filename_basis + '_' + str(Number_of_runs_times_dimensions) + '_runs_' + str(Zeit_max) + '_tsteps_' +  '.png', dpi=300, figsize=(8, 6))
+			plt.clf()
+		else:
+			fig = plt.figure()
+			ax = fig.add_subplot(111)
+			ax.xaxis.grid
+			ax.yaxis
+			figure.autolayout = True
+			ax.set_xlabel(r'Fit-time $[fm]$')
+			#ax.tick_params(axis='x', pad=-0.7)
+			plt.grid(b=True, which='major')
+			plt.plot(fitrange_array, Slopedata_fitrange_array)#,zeit, fitFunc(t, fitParams[0] + sigma[0], fitParams[1] - sigma[1], fitParams[2] + sigma[2]),zeit, fitFunc(t, fitParams[0] - sigma[0], fitParams[1] + sigma[1], fitParams[2] - sigma[2]))
+			plt.errorbar(fitrange_array, Slopedata_fitrange_array, linestyle='-', color='r', label=('Corr'), yerr=Jackknifeerrordata_fitrange_array, ecolor='g')
+			plt.ylabel(r'$\tau$')
+			plt.title(r'Results for the fitting of $\tau$')
+			plt.xlim(fitrange_array[0]-200,fitrange_array[N.size(fitrange_array)-1]+200)
+			#ax.set_xticks(Positionxlabels)
+			#ax.set_xticklabels(Arrayxlabels,rotation=45)
+			plt.ylabel(r'Slope $[fm]$')
+			ax.bottom = 0.25
+			#plt.savefig('Part_'+str(typcount)+'_'+filename_basis+'_'+str(Number_of_runs)+'_runs_'+str(Zeit_max)+'_tsteps_'+beliebig+'.eps')
+			plt.savefig(beliebig +'Slopes' + '_' + filename_basis + '_' + str(Number_of_runs_times_dimensions) + '_runs_' + str(Zeit_max) + '_tsteps_' +  '.png', dpi=300, figsize=(8, 6))
+			plt.clf()			
 
 		#-------------------------------------
 		#Plot and save the Correlator figure
