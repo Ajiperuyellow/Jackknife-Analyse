@@ -33,6 +33,7 @@ DatacolumnD3 = 17
 histograms_on = False
 currentplots_on = False
 jackknife_output_on = False
+example_fluctuation_on = True
 
 #3) Data about the Runs:
 run_group_name = 'RCONhX03NEW'
@@ -167,6 +168,7 @@ while b < (temperature_end + temperature_inc):
 		corrfunction_array_manually = N.zeros((Zeit_max, Number_of_runs_times_dimensions)) 
 		corrfunction_array_MASK = N.zeros((Zeit_max, Number_of_runs_times_dimensions))
 		Array_aus_jackknife_steigungen = N.zeros(Number_of_runs_times_dimensions)
+		Current_Array_example = N.zeros(N)
 		
 		#Loop through all runs
 		runnumber = 1
@@ -297,7 +299,7 @@ while b < (temperature_end + temperature_inc):
 					#Write the output-file
 					#chdir('ANALYSIS_'+filename_basis+'_'+beliebig)
 					#chdir('Correlators_'+filename_basis+'_'+beliebig)
-					f = codecs.open('Corr' + '_' + filename_basis + '_' + str(runnumber) + '_' + str(Zeit_max) + '_tsteps_' , 'w')
+					f = codecs.open('Current' + '_' + filename_basis + '_' + str(runnumber) + '_' + str(Zeit_max) + '_tsteps_' , 'w')
 					f.write(correlationstring)
 					f.close()
 					chdir('../../')
